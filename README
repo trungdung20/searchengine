@@ -1,0 +1,6 @@
+My first search engine using python programming language. 
+My search engine can perform well for a set of 100000 web pages, enough for a news site or corporate intranet. The database which is use for testing purpose contains data that I get from wikipedia site. I also implement a neural network algorithm which can learn from whatever results users choose from search result query to improve search model prediction.
+Open a terminal in order to use the engine 
+1.Training model: python searchengine.py train
+2.Test model: python searchengine.py test 
+3.Perform quick search: python searchengine.py search <search_query> 
