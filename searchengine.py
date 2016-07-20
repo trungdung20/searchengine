@@ -203,13 +203,16 @@ class searcher:
         #PLIT THE WORDS BY SPACES
         words = q.split(' ')
         tablenumber = 0
-
+        can_execute = False
         for word in words:
+            #print word
             #Get the word ID
             wordrow = self.con.execute(
             "select rowid from wordlist where word ='%s'"%word
             ).fetchone()
+            #print wordrow
             if wordrow != None:
+                can_execute = True
                 wordid = wordrow[0]
                 wordids.append(wordid)
                 if tablenumber > 0:
@@ -222,11 +225,14 @@ class searcher:
                 tablenumber += 1
 
         #create the query from the seperate parts
-        fullquery = 'select %s from %s where %s'%(fieldlist, tablelist, clauselist)
-        cur = self.con.execute(fullquery)
-        rows = [row for row in cur]
-
-        return rows, wordids
+        if can_execute:
+            fullquery = 'select %s from %s where %s'%(fieldlist, tablelist, clauselist)
+            #print fullquery
+            cur = self.con.execute(fullquery)
+            rows = [row for row in cur]
+            return rows, wordids
+        else:
+            return None;
 
     def getscoredlist(self, rows, wordids):
         totalscores = dict([(row[0], 0) for row in rows])
@@ -245,14 +251,17 @@ class searcher:
         ).fetchone()[0]
 
     def query(self, q, result_only=0):
-        rows, wordids = self.getmatchrows(q)
-        scores = self.getscoredlist(rows, wordids)
-        rankedscores = sorted([(score, url) for (url, score) in scores.items()], reverse = 1)
-        if result_only == 0 :
-            for (score, urlid) in rankedscores[0:10]:
-                print '%f\t%s' %(score, self.geturlname(urlid))
-        if result_only == 1:
-            return rankedscores, wordids
+        try:
+            rows, wordids = self.getmatchrows(q)
+            scores = self.getscoredlist(rows, wordids)
+            rankedscores = sorted([(score, url) for (url, score) in scores.items()], reverse = 1)
+            if result_only == 0 :
+                for (score, urlid) in rankedscores[0:10]:
+                    print '%f\t%s' %(score, self.geturlname(urlid))
+            if result_only == 1:
+                return rankedscores, wordids
+        except Exception as e:
+            print("Oops! Cannot find result")
 
     def normalizescores(self, scores, smallIsBetter = 0):
         vsmall = 0.00001 #Avoid division by zero errors
@@ -333,20 +342,28 @@ class searcher:
 
 def trainnetwork(query, search_class, net_class, target, iterations):
     for q in query:
-        rows_q, wordids_q = search_class.query(q,1)
-        urlids_q = [urlid for urlid in set([row_q[1] for row_q in rows_q])]
-        print "train network begin for %s with %s id and %d url targets " %(q, wordids_q, urlids_q[target])
-        for i in range(iterations):
-            print "****************************************************"
-            print "train through %s iterations" %i
-            net_class.trainquery(wordids_q, urlids_q, urlids_q[target])
-            if i == iterations-1:
-                print "finish training %s" %q
+        try:
+            rows_q, wordids_q = search_class.query(q,1)
+            urlids_q = [urlid for urlid in set([row_q[1] for row_q in rows_q])]
+            print "train network begin for %s with %s id and %d url targets " %(q, wordids_q, urlids_q[target])
+            for i in range(iterations):
+                print "****************************************************"
+                print "train through %s iterations" %i
+                net_class.trainquery(wordids_q, urlids_q, urlids_q[target])
+                if i == iterations-1:
+                    print "finish training %s" %q
+        except Exception as e:
+            print "Exit trainning process, bye"
+
 
 def testnetwork(query,search_class, net_class):
-    rows_q, wordids_q = search_class.query(query, 1)
-    urlids_q = [urlid for urlid in set([row_q[1] for row_q in rows_q])]
-    print net_class.getresult(wordids_q, urlids_q)
+    try:
+        rows_q, wordids_q = search_class.query(query, 1)
+        urlids_q = [urlid for urlid in set([row_q[1] for row_q in rows_q])]
+        print net_class.getresult(wordids_q, urlids_q)
+    except Exception as e:
+        print "Exit testing process due to unable to find matched query"
+
 
 if __name__ == '__main__':
     import searchengine
@@ -362,11 +379,10 @@ if __name__ == '__main__':
 
     #mynet.maketables()
     query = []
-    query.append('programming')
-    query.append('wikipedia')
-    query.append('female')
 
     if argv[1] == 'train':
+        for element in sys.argv[2:]:
+            query.append(element)
         trainnetwork(query, search, mynet, 5, 1000)
     if argv[1] == 'test':
         testnetwork('female',search, mynet)

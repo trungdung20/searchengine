@@ -52,8 +52,10 @@ class searchnet:
             )
             hiddenid = cur.lastrowid
             #put in some default weights
+            #put into word layer
             for wordid in wordids:
                 self.setstrength(wordid, hiddenid, 0, 1.0/len(wordids))
+            #put into link layer
             for urlid in urls:
                 self.setstrength(hiddenid, urlid, 1, 0.1)
             self.con.commit()
@@ -80,7 +82,6 @@ class searchnet:
         self.ai = [1.0]*len(self.wordids)
         self.ah = [1.0]*len(self.hiddenids)
         self.ao = [1.0]*len(self.urlids)
-
         #create weights matrix
         self.wi = [[self.getstrength(wordid, hiddenid, 0)
                     for hiddenid in self.hiddenids] for wordid in self.wordids]
