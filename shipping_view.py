@@ -1,3 +1,58 @@
+def supplement_list(request):
+    context_dict = {}
+    if 'shop_id' in request.session:
+        shop_id = request.session['shop_id']
+        shop = Shop.objects.get(id=shop_id,enable=1)
+        try:
+            supplement_list = Supplement.objects.filter(enable=1, customer__shop=shop).order_by('-id')
+            i = 1
+            new_supplement_list = []
+            for supplement in supplement_list:
+                try:
+                    customer = Customer.objects.get(pk=supplement.customer_id)
+                    context_dict['customer_name'] = customer.name
+                except:
+                    context_dict['customer_name'] = ''
+                #supplement.shipping_date='123'
+                res1 = Sale.objects.filter(supplement=supplement.id).order_by('shipping_date').first()
+                try:
+                    supplement.shipping_date=res1.shipping_date
+                except:
+                    supplement.shipping_date = ''
+
+                res2 = Sale.objects.filter(supplement=supplement.id).order_by('billing_date').first()
+                try:
+                    supplement.billing_date = res2.billing_date
+                except:
+                    supplement.billing_date = ''
+
+                res3 = Sale.objects.filter(supplement=supplement.id).count()
+                if res3 !=0:
+                    res4 = Sale.objects.filter(supplement=supplement.id,payment_date__isnull=True).count()
+                    if res4 !=0:
+                        supplement.payment_date='未'
+                    else:
+                        supplement.payment_date='済'
+                else:
+                    supplement.payment_date='未'
+                #check supplement have supplement_sale
+                supplement_sale_list = Sale.objects.filter(enable=1,supplement=supplement.id).count()
+                supplement.sale_number = supplement_sale_list
+                new_supplement_list.append([supplement, i])
+                i += 1
+            context_dict['supplement_list'] = new_supplement_list
+
+            return render_to_response('supplement-list.html', RequestContext(request, context_dict))
+        except OSError as e:
+            messages_error = "errors message: %s" % e
+            return render_to_response('404.html', \
+                                      RequestContext(request, {'messages_error': messages_error}))
+    else:
+        return HttpResponseRedirect('/shops/')
+
+
+
+
 @login_required
 @user_passes_test(supplement_user_check,login_url='/alert/')
 def shipping(request,shipping_number):
